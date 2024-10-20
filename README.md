@@ -6,11 +6,11 @@ QR Code Generation in Python
 
 List of components to build
 - [ ] Input Handling
-- [ ] Grid to Image
-- [ ] QR Element Placement
+- [x] Grid to Image
+- [x] QR Element Placement
 - [ ] Data Encoding
-- [ ] Data Placement
-- [ ] Function Patterns
+- [x] Data Placement
+- [x] Function Patterns
 - [ ] Mask Patterns
 - [ ] Error Correction
 - [ ] Mask Evaluation and Scoring

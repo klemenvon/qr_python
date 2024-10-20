@@ -15,6 +15,7 @@ qr = QRGenerator(
     padding=0,
 )
 qr.add_required_elements()
+qr.place_data()
 
 if args.show_mask:
     if args.save:

@@ -16,6 +16,12 @@ class GridImage():
         2: 'red',
         3: 'purple',
         4: 'blue',
+        5: 'green',
+        6: 'yellow',
+        7: 'orange',
+        8: 'pink',
+        9: 'brown',
+        10: 'grey',
     }
     def __init__(self, grid, module_size=1, **kwargs):
         self.grid = grid
@@ -42,8 +48,16 @@ class GridImage():
                 x = col_idx * self.module_size
                 y = row_idx * self.module_size
                 # Get color for mapping
-                color = self.mapping[value]
-                draw.rectangle([x, y, x + self.module_size, y + self.module_size], fill=color)
+                color = self.mapping.get(value)
+                if color:
+                    draw.rectangle([x, y, x + self.module_size, y + self.module_size], fill=color)
+                elif isinstance(value, str):
+                    draw.text((x, y), value, fill='white')
+                elif isinstance(value,tuple):
+                    text, color = value
+                    color = self.mapping.get(color)
+                    draw.rectangle([x, y, x + self.module_size, y + self.module_size], fill=color)
+                    draw.text((x, y), text, fill='black')
         return image
 
     def save(self, filename):
@@ -61,6 +75,7 @@ class QRGenerator:
         self.padding = kwargs.get('padding',4)
         self.padding_flag = False
         self.module_size = kwargs.get('module_size',1)
+        self.size = None
     
     def show_mask(self):
         if self.data_mask is None:
@@ -124,6 +139,64 @@ class QRGenerator:
         self._place_black_module()
         self._place_version_info()
         self._place_error_correction_bits()
+    
+    def _generate_color_data(self, size=4000):
+        encoded = []
+        for i in range(size):
+            symbol = i % 6 + 4
+            encoded.extend([symbol] * 8)
+        return encoded
+
+    def _generate_numbered_data(self, size=32000):
+        encoded = []
+        for i in range(size):
+            encoded.append(f"{i:04d}")
+        return encoded
+
+    def _generate_debug_combo(self):
+        numbers = self._generate_numbered_data()
+        colors = self._generate_color_data()
+        combo = []
+        for num, col in zip(numbers, colors):
+            combo.append((num,col))
+        return combo
+    
+    def _encode_data(self):
+        # Currently we don't take data in so generate bogus bits
+        return self._generate_color_data()
+    
+    def _get_indexed_array(self):
+        indexed = [[(i,j) for j in range(self.size)] for i in range(self.size)]
+        return indexed
+    
+    def place_data(self):
+        encoded_data = self._encode_data()
+        indexed = self._get_indexed_array()
+        # Throw out column 6
+        indexed = indexed[:6] + indexed[7:]
+        # Take the last two columns, and interleave them
+        # They have to be interleaved in a pattern that goes up and then down again
+        # To gain an intuition for why the lists and final flat list are flipped every other time
+        # draw it out for yourself
+        counter = 0
+        while len(indexed) > 1:
+            first = indexed.pop(-1)
+            second = indexed.pop(-1)
+            # Optionally reverse the lists
+            flat = []
+            for i, j in zip(first, second):
+                # Every second pair, we need to interleave them the other way around
+                if counter % 2 == 0:
+                    flat.extend([j,i])
+                else:
+                    flat.extend([i,j])
+            # Every second pair of rows, reverse the flat order as we go downwards
+            if counter % 2 == 0:
+                flat = flat[::-1]
+            for (x,y) in flat:
+                if self.modules[y][x] is None:
+                    self.modules[y][x] = encoded_data.pop(0)
+            counter += 1
     
     def _place_black_module(self):
         # Place a black module at the bottom right
@@ -194,10 +267,15 @@ class QRGenerator:
         if self.version < 7:
             return
         # Place version info
-        for i in range(6):
-            for j in range(3):
-                self.modules[self.size-11+j][i] = 3 
-                self.modules[i][self.size-11+j] = 3
+        # Bottom Left
+        for x in range(6):
+            for ymod in range(3):
+                self.modules[self.size-11+ymod][x] = 3
+        
+        # Top Right
+        for y in range(6):
+            for xmod in range(3):
+                self.modules[y][self.size-11+xmod] = 3
 
     def _place_error_correction_bits(self):
         # It's handy if we do this in the correct order already

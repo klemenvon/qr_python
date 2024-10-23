@@ -8,7 +8,7 @@ List of components to build
 - [ ] Input Handling
 - [x] Grid to Image
 - [x] QR Element Placement
-- [ ] Data Encoding
+- [x] Data Encoding
 - [x] Data Placement
 - [x] Function Patterns
 - [ ] Mask Patterns

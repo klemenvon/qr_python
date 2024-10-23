@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from qrgen import QRGenerator
+from qrgen import QRGenerator, ByteEncoder
 
 parser = ArgumentParser()
 parser.add_argument('-v', '--version', type=int, default=1, help='QR Code version')
@@ -8,8 +8,13 @@ parser.add_argument('-s', '--save', type=str, help='Filename to save QR Code')
 parser.add_argument('--show_mask', action='store_true', help='Show only data area.')
 args = parser.parse_args()
 
+data = 'Hello World! This is just here for padding. Hi.'
+encoder = ByteEncoder(data)
+encoded_data = encoder.encode(qr_version=args.version)
+print(encoded_data)
+
 qr = QRGenerator(
-    data='Hello World!',
+    data=[encoded_data],
     version=args.version,
     module_size=args.module_size,
     padding=0,

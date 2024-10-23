@@ -1,12 +1,7 @@
-# Here we'll try to encode some data from input into a sensible string of bits.
-
-# Bit wrangling classc courtesy of Claude
-
-# Alphanumeric QR encoding
 # String serves as our lookup table
 ALPHANUM = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
 
-
+# Base Encoder Class to avoid duplicate code
 class BaseEncoder:
     def __init__(self, data):
         self.data = data
@@ -26,13 +21,10 @@ class BaseEncoder:
         else:
             return self.LARGE
 
-    def get_final(self, qr_version):
+    def encode(self, qr_version=1):
         self._create_data_blocks()
         self._create_length_bits(qr_version)
-        final_stream = BitStream()
-        final_stream.extend(self.mode_indicator)
-        final_stream.extend(self.length_bits)
-        final_stream.extend(self.data_blocks)
+        final_stream = merge_bitstreams([self.mode_indicator, self.length_bits, self.data_blocks])
         return final_stream
     
     def get_encoded_data(self):
@@ -56,7 +48,7 @@ class BaseEncoder:
         else:
             self.length_bits.put(self.data_length, self.LARGE)
 
-class AlphaNumEncoder(BaseEncoder):
+class AlphanumericEncoder(BaseEncoder):
     SMALL = 9
     MEDIUM = 11
     LARGE = 13
@@ -99,6 +91,13 @@ class ByteEncoder(BaseEncoder):
             stream.put(byte, 8)
         return stream
 
+def merge_bitstreams(streams):
+    # Merge multiple bitstreams into one
+    final_stream = BitStream()
+    for stream in streams:
+        final_stream.extend(stream)
+    return final_stream
+
 class BitStream:
     def __init__(self):
         self.buffer = []
@@ -135,49 +134,7 @@ class BitStream:
         # Add the bits from another bit stream to this one
         for i in range(len(other)):
             self.put_bit(other.get(i))
-
-# Test the bit buffer
-buf = BitStream()   # Create bit buffer
-buf.put(10,4)       # Put in a 4 bit int
-buf.put(11,4)       # Put in another 4 bit int
-buf.put(15,4)       # Another 4 bit int
-print(buf)
-
-firstBuf = BitStream()
-firstBuf.put(10,4)
-
-secondBuf = BitStream()
-secondBuf.put(11,4)
-secondBuf.put(15,4)
-
-firstBuf.extend(secondBuf)
-print(firstBuf)
-
-# Quick test of the utf-8 encoder
-stream = BitStream()
-text = "Hello"
-ints = int.from_bytes(text.encode('utf-8'), 'big')
-stream.put(ints, 40)
-print(stream)
-
-another = BitStream()
-classic = [ord(c) for c in text]
-for c in classic:
-    another.put(c, 8)
-print(another)
-
-# Test the ByteEncoder
-print("Testing ByteEncoder")
-encoder = ByteEncoder("Hello")
-print(encoder.get_encoded_data())
-
-# Test the bit stream
-# stream = BitStream()
-# stream.append_bits(0b101, 3)
-# print(stream.get_bytes())
-# print(stream.get_bits(3, 5))
-# print(stream.position)
-# stream.append_bytes(b'Hello')
-# print(stream.get_bytes())
-# print(stream.get_bits(3, 5))
-# print(stream.position)
+    
+    def to_bool_array(self):
+        # Convert the buffer to an array of booleans
+        return [self.get(i) for i in range(self.length)]

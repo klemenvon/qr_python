@@ -1,7 +1,11 @@
-from PIL import Image, ImageDraw, ImageFont
-from random import random
+from PIL import Image, ImageDraw
+from typing import Union, List
 
 from .utils import get_alignment_pattern_positions
+from .encoders import (
+    merge_bitstreams,
+    BitStream,
+)
 
 class GridImage():
     """
@@ -67,7 +71,10 @@ class GridImage():
         self.image.show()
 
 class QRGenerator:
-    def __init__(self, data=None, version=1, **kwargs):
+    def __init__(self,
+                 data: Union[str, List[BitStream]] = None,
+                 version: int = 1,
+                 **kwargs):
         self.version = version
         self.data = data
         self.modules = None
@@ -76,6 +83,17 @@ class QRGenerator:
         self.padding_flag = False
         self.module_size = kwargs.get('module_size',1)
         self.size = None
+    
+    def _encode_data(self):
+        if isinstance(self.data, str):
+            return self._generate_color_data() # Placeholder
+        elif isinstance(self.data, list):
+            return merge_bitstreams(self.data).to_bool_array()
+        else:
+            raise ValueError('Data must be a string or list of BitStreams')
+    
+    def _optimal_encoding(self):
+        pass
     
     def show_mask(self):
         if self.data_mask is None:
@@ -161,9 +179,9 @@ class QRGenerator:
             combo.append((num,col))
         return combo
     
-    def _encode_data(self):
-        # Currently we don't take data in so generate bogus bits
-        return self._generate_color_data()
+    # def _encode_data(self):
+    #     # Currently we don't take data in so generate bogus bits
+    #     return self._generate_color_data()
     
     def _get_indexed_array(self):
         indexed = [[(i,j) for j in range(self.size)] for i in range(self.size)]

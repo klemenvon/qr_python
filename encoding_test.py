@@ -35,6 +35,10 @@ class BaseEncoder:
         final_stream.extend(self.data_blocks)
         return final_stream
     
+    def get_encoded_data(self):
+        # Mostly for debugging
+        return self.data_blocks
+    
     def _create_mode_indicator(self):
         stream = BitStream()
         stream.put(self.MODE, 4)
@@ -56,6 +60,7 @@ class AlphaNumEncoder(BaseEncoder):
     SMALL = 9
     MEDIUM = 11
     LARGE = 13
+    MODE = 2
 
     def _create_data_blocks(self):
         stream = BitStream()
@@ -65,10 +70,11 @@ class AlphaNumEncoder(BaseEncoder):
             stream.put(index1 * 45 + index2, 11)
         return stream
     
-class NumericEncoder:
+class NumericEncoder(BaseEncoder):
     SMALL = 10
     MEDIUM = 12
     LARGE = 14
+    MODE = 1
 
     def _create_data_blocks(self):
         stream = BitStream()
@@ -79,16 +85,18 @@ class NumericEncoder:
             stream.put(num, 10)
         return stream
 
-class ByteEncoder:
+class ByteEncoder(BaseEncoder):
     SMALL = 8
     MEDIUM = 16
     LARGE = 16
+    MODE = 4
 
     def _create_data_blocks(self):
         # Just use utf-8 encoding
-        utf8_data = int.from_bytes(str(self.data).encode('utf-8'))
         stream = BitStream()
-        stream.put(utf8_data, self.data_length * 8)
+        utf8_bytes = self.data.encode('utf-8')
+        for byte in utf8_bytes:
+            stream.put(byte, 8)
         return stream
 
 class BitStream:
@@ -157,6 +165,11 @@ classic = [ord(c) for c in text]
 for c in classic:
     another.put(c, 8)
 print(another)
+
+# Test the ByteEncoder
+print("Testing ByteEncoder")
+encoder = ByteEncoder("Hello")
+print(encoder.get_encoded_data())
 
 # Test the bit stream
 # stream = BitStream()

@@ -7,3 +7,5 @@ from .encoders import (
         AlphanumericEncoder,
         ByteEncoder,
 )
+
+from .reedsolomon import *

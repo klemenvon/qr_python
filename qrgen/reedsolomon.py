@@ -241,7 +241,6 @@ def get_codeword_capacity(version, ec_mode):
         blocks += (info_block[3] * info_block[5])
         return blocks
 
-
 class RSBlock:
     total_count: int
     data_count: int

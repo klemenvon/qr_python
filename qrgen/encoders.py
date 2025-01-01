@@ -24,7 +24,7 @@ class BaseEncoder:
     def encode(self, qr_version=1):
         self._create_data_blocks()
         self._create_length_bits(qr_version)
-        final_stream = merge_bitstreams([self.mode_indicator, self.length_bits, self.data_blocks])
+        final_stream = BitStream.merge_bitstreams([self.mode_indicator, self.length_bits, self.data_blocks])
         return final_stream
     
     def get_encoded_data(self):
@@ -91,13 +91,6 @@ class ByteEncoder(BaseEncoder):
             stream.put(byte, 8)
         return stream
 
-def merge_bitstreams(streams):
-    # Merge multiple bitstreams into one
-    final_stream = BitStream()
-    for stream in streams:
-        final_stream.extend(stream)
-    return final_stream
-
 class BitStream:
     def __init__(self):
         self.buffer = []
@@ -138,3 +131,11 @@ class BitStream:
     def to_bool_array(self):
         # Convert the buffer to an array of booleans
         return [self.get(i) for i in range(self.length)]
+
+    @staticmethod
+    def merge_bitstreams(streams):
+        # Merge multiple bitstreams into one
+        final_stream = BitStream()
+        for stream in streams:
+            final_stream.extend(stream)
+        return final_stream

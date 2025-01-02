@@ -9,6 +9,7 @@ parser.add_argument('--show_mask', action='store_true', help='Show only data are
 args = parser.parse_args()
 
 data = 'Hello World! This is just here for padding. Hi.'
+data = " ".join([data for _ in range(100)])
 encoder = ByteEncoder(data)
 encoded_data = encoder.encode(qr_version=args.version)
 print(encoded_data)

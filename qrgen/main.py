@@ -3,6 +3,7 @@ from typing import Union, List
 from .utils import get_alignment_pattern_positions
 from .encoders import BitStream
 from .grid_image import GridImage
+from .mask_patterns import apply_mask, evaluate_mask
 
 # TODO: This class seems way too big. Should refactor
 class QRGenerator:
@@ -122,6 +123,37 @@ class QRGenerator:
     def _get_indexed_array(self):
         indexed = [[(i,j) for j in range(self.size)] for i in range(self.size)]
         return indexed
+    
+    def fill_white(self):
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.modules[i][j] is None:
+                    self.modules[i][j] = False
+    
+    def apply_mask(self, pattern_number):
+        apply_mask(self.modules, self.data_mask, pattern_number)
+
+    def _evaluate_mask(self, mask_number):
+        temp_modules = [row[:] for row in self.modules] # Copy the modules
+        apply_mask(temp_modules, self.data_mask, mask_number)
+        eval_score = evaluate_mask(temp_modules)
+        return eval_score
+    
+    def _find_best_mask(self):
+        best_score = None
+        best_mask = None
+        for i in range(8):
+            score = self._evaluate_mask(i)
+            print(f'Mask {i} has score {score}')
+            if best_score is None or score < best_score:
+                best_score = score
+                best_mask = i
+        return best_mask
+    
+    def apply_best_mask(self):
+        best_mask = self._find_best_mask()
+        print(f'Applying best mask {best_mask}')
+        apply_mask(self.modules, self.data_mask, best_mask)
     
     def place_data(self):
         encoded_data = self._encode_data()

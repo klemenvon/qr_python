@@ -1,5 +1,7 @@
 # This is gonna be the toughest bit of this project I think
-from typing import NamedTuple
+from typing import List, Tuple
+from dataclasses import dataclass
+from .polynomial_gen import GeneratorPolynomialCalculator
 
 """
 Blocks defined here are as follows:
@@ -233,13 +235,12 @@ def get_rs_block_table(version, ec_mode):
     return RS_BLOCK_TABLE[(version - 1) * 4 + EC_INDEX[ec_mode]]
 
 def get_codeword_capacity(version, ec_mode):
-    info_block = get_rs_block_table(version, ec_mode)
-    if len(info_block) == 3:
-        return info_block[0] * info_block[2]
-    else:
-        blocks = (info_block[0] * info_block[2])
-        blocks += (info_block[3] * info_block[5])
-        return blocks
+    config = get_rs_block_table(version, ec_mode)
+    block_config = [config[i:i + 3] for i in range(0, len(config), 3)]
+    return sum([
+        data * count
+        for count, _, data in block_config
+    ])
 
 class RSBlock:
     total_count: int
@@ -251,3 +252,101 @@ def rs_blocks(version, ec_mode):
     for i in range(0, len(info_block), 3):
         blocks.append(RSBlock(*info_block[i:i + 3]))
     return blocks
+
+@dataclass
+class RSBlock:
+    """Represents a Reed-Solomon block configuration"""
+    total_words: int
+    data_words: int
+    
+    @property
+    def ec_words(self) -> int:
+        """Number of error correction words"""
+        return self.total_words - self.data_words
+
+class ReedSolomonEncoder:
+    def __init__(self, generator_calculator):
+        self.generator_calc = generator_calculator
+        self.gf = generator_calculator.gf
+        
+    def encode_block(self, data: List[int], ec_words: int) -> List[int]:
+        """
+        Encode a single block of data using Reed-Solomon encoding
+        
+        Args:
+            data: List of data words to encode
+            ec_words: Number of error correction words to generate
+        
+        Returns:
+            List of error correction words
+        """
+        generator = self.generator_calc.generate_generator_polynomial(ec_words)
+        
+        # Create the message polynomial
+        message = list(data) + [0] * ec_words
+        
+        # Perform polynomial division
+        for i in range(len(data)):
+            if message[i] == 0:
+                continue
+                
+            factor = self.gf.log[message[i]]
+            
+            for j in range(len(generator)):
+                message[i + j] ^= self.gf.exp[(self.gf.log[generator[j]] + factor) % 255]
+        
+        return message[-ec_words:]
+
+class QRErrorCorrection:
+    """
+    Handles QR code error correction level configurations and block splitting
+    """
+    
+    @staticmethod
+    def get_block_config(version: int, ec_level: str) -> List[RSBlock]:
+        """Get RS block configuration for given version and EC level"""
+        if version < 1 or version > 40 and ec_level not in EC_INDEX.keys():
+            raise ValueError(f"Invalid version or EC level: {version}, {ec_level}")
+        # Get block config from the table
+        config = RS_BLOCK_TABLE[(version - 1) * 4 + EC_INDEX[ec_level]]
+        # Split by 3 to get each block configuration section separately
+        block_config = [config[i:i + 3] for i in range(0, len(config), 3)]
+        
+        return [
+            RSBlock(total_words=total, data_words=data)
+            for count, total, data in block_config
+            for _ in range(count)
+        ]
+        
+    def __init__(self, version: int, ec_level: str):
+        self.version = version
+        self.ec_level = ec_level.upper()
+        
+        self.blocks = self.get_block_config(version, self.ec_level)
+        self.encoder = ReedSolomonEncoder(GeneratorPolynomialCalculator())
+    
+    def encode_data(self, data: List[int]) -> Tuple[List[List[int]], List[List[int]]]:
+        """
+        Encode data using Reed-Solomon error correction
+        
+        Args:
+            data: List of data words to encode
+        
+        Returns:
+            Tuple of (data blocks, error correction blocks)
+        """
+        data_blocks = []
+        ec_blocks = []
+        
+        data_idx = 0
+        for block in self.blocks:
+            # Split data into blocks
+            block_data = data[data_idx:data_idx + block.data_words]
+            data_idx += block.data_words
+            data_blocks.append(block_data)
+            
+            # Generate error correction words for each block
+            ec_words = self.encoder.encode_block(block_data, block.ec_words)
+            ec_blocks.append(ec_words)
+        
+        return data_blocks, ec_blocks

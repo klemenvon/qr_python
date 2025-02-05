@@ -122,11 +122,16 @@ class BitStream:
         if bit:     # If bit is 'True' insert it at the next position, else skip
             self.buffer[buf_index] |= 0x80 >> (self.length % 8)
         self.length += 1
-    
+
     def extend(self, other):
         # Add the bits from another bit stream to this one
         for i in range(len(other)):
             self.put_bit(other.get(i))
+    
+    def pad_to_length(self, length):
+        # Pad the buffer with zeros to reach the desired length
+        while len(self) < length:
+            self.put_bit(False)
     
     def to_bool_array(self):
         # Convert the buffer to an array of booleans
@@ -139,3 +144,11 @@ class BitStream:
         for stream in streams:
             final_stream.extend(stream)
         return final_stream
+    
+    @staticmethod
+    def from_int8_array(array):
+        # Convert an array of integers to a bitstream
+        stream = BitStream()
+        for byte in array:
+            stream.put(byte, 8)
+        return stream

@@ -25,6 +25,8 @@ class QRGenerator:
             return self._generate_color_data() # Placeholder
         elif isinstance(self.data, list):
             return BitStream.merge_bitstreams(self.data).to_bool_array()
+        elif isinstance(self.data, BitStream):
+            return self.data.to_bool_array()
         else:
             raise ValueError('Data must be a string or list of BitStreams')
     
@@ -181,7 +183,11 @@ class QRGenerator:
                 flat = flat[::-1]
             for (x,y) in flat:
                 if self.modules[y][x] is None:
-                    self.modules[y][x] = encoded_data.pop(0)
+                    try:
+                        # Just pad with False if we run out of data
+                        self.modules[y][x] = encoded_data.pop(0)
+                    except IndexError:
+                        self.modules[y][x] = False
             counter += 1
     
     def _place_black_module(self):

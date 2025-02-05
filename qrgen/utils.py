@@ -47,3 +47,9 @@ def get_alignment_pattern_positions(version):
         return []
     locations = alignment_patterns[version-1]
     return [(x, y) for x in locations for y in locations]
+
+def interleave_blocks(data_blocks):
+    interleaved = []
+    for group in zip(*data_blocks):
+        interleaved.extend(list(group))
+    return interleaved

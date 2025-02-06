@@ -50,6 +50,16 @@ def get_alignment_pattern_positions(version):
 
 def interleave_blocks(data_blocks):
     interleaved = []
+    max_length = max(len(block) for block in data_blocks)
+    for i in range(max_length):
+        for block in data_blocks:
+            if i < len(block):
+                interleaved.append(block[i])
+    return interleaved
+
+def interleave_blocks_broken(data_blocks):
+    # Lol, this is broken because if the blocks are of different lengths, it will simply disappear some data into the void
+    interleaved = []
     for group in zip(*data_blocks):
         interleaved.extend(list(group))
     return interleaved

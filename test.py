@@ -12,28 +12,17 @@ parser.add_argument('--mask', type=int, help='Mask pattern to apply')
 args = parser.parse_args()
 
 data = 'Hello World! This is just here for padding. Hi.'
-# data = " ".join([data for _ in range(100)])
-encoder = ByteEncoder(data)
-encoded_data = encoder.encode(qr_version=args.version)
-capacity = get_codeword_capacity(args.version, args.ec_level) * 8
-if len(encoded_data) > capacity:
-    raise ValueError(f'Data too long for version {args.version} with error correction level {args.ec_level}')
-encoded_data.pad_to_length(capacity)
-
-# Encode the data with Reed-Solomon error correction
-qr_ec = QRErrorCorrection(version=args.version, ec_level=args.ec_level)
-data_blocks, ec_blocks = qr_ec.encode_data(encoded_data.buffer)
-data_final = interleave_blocks(data_blocks)
-ec_final = interleave_blocks(ec_blocks)
-data_stream = BitStream.from_int8_array(data_final)
-ec_stream = BitStream.from_int8_array(ec_final)
+# data = 'Hello World!'
+# data = 'https://youtu.be/dQw4w9WgXcQ'
+# data = " ".join([data for _ in range(5)])
 
 
 qr = QRGenerator(
-    data=[data_stream, ec_stream],
+    data=data,
     version=args.version,
+    ec_level=args.ec_level,
     module_size=args.module_size,
-    padding=0,
+    padding=4,
 )
 qr.add_required_elements()
 qr.place_data()
@@ -41,8 +30,11 @@ qr.place_data()
 if args.mask is not None:
     print(f'Applying mask pattern {args.mask}')
     qr.apply_mask(args.mask)
+    qr.mask_pattern = args.mask
+    qr.add_metadata()
 else:
     qr.apply_best_mask()
+    qr.add_metadata()
 
 if args.show_mask:
     if args.save:

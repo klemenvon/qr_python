@@ -92,6 +92,8 @@ class ByteEncoder(BaseEncoder):
         return stream
 
 class BitStream:
+    PADDING = [0xEC, 0x11]
+
     def __init__(self):
         self.buffer = []
         self.length = 0
@@ -128,10 +130,19 @@ class BitStream:
         for i in range(len(other)):
             self.put_bit(other.get(i))
     
-    def pad_to_length(self, length):
-        # Pad the buffer with zeros to reach the desired length
-        while len(self) < length:
+    def _add_terminator_bits(self):
+        """Terminator bits always 0000"""
+        for _ in range(min(4, (8 - (self.length % 8)))):
             self.put_bit(False)
+    
+    def _pad_codewords(self, num_codewords):
+        for i in range(num_codewords):
+            self.put(BitStream.PADDING[i % 2], 8)
+    
+    def pad_to_length(self, length):
+        # Add terminator bits and pad the codewords
+        self._add_terminator_bits()
+        self._pad_codewords((length - self.length) // 8)
     
     def to_bool_array(self):
         # Convert the buffer to an array of booleans

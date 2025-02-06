@@ -1,28 +1,57 @@
 from typing import Union, List
 
-from .utils import get_alignment_pattern_positions
-from .encoders import BitStream
+from .utils import get_alignment_pattern_positions, interleave_blocks
+from .encoders import BitStream, ByteEncoder
 from .grid_image import GridImage
 from .mask_patterns import apply_mask, evaluate_mask
+from .reedsolomon import get_codeword_capacity, QRErrorCorrection
+from .metadata import QRFormatInfo, QRVersionInfo
 
 # TODO: This class seems way too big. Should refactor
 class QRGenerator:
     def __init__(self,
                  data: Union[str, List[BitStream]] = None,
                  version: int = 1,
+                 ec_level: str = 'L',
                  **kwargs):
         self.version = version
         self.data = data
+        self.ec_level = ec_level
         self.modules = None
         self.data_mask = None
+        self.mask_pattern = None
         self.padding = kwargs.get('padding',4)
         self.padding_flag = False
         self.module_size = kwargs.get('module_size',1)
         self.size = None
     
+    def _pre_process_data(self):
+        encoder = ByteEncoder(self.data)
+        encoded_data = encoder.encode(qr_version=self.version)
+        capacity = get_codeword_capacity(self.version, self.ec_level) * 8
+        if len(encoded_data) > capacity:
+            raise ValueError(f'Data too long for version {self.version} with error correction level {self.ec_level}')
+        if capacity > len(encoded_data):
+            if float(len(encoded_data)) / capacity < 0.75:
+                print('Warning: Data is less than 75% the capacity of the QR code, consider using a smaller version')
+        encoded_data.pad_to_length(capacity)
+        return encoded_data
+    
+    def _prepare_data(self, encoded_data):
+        qr_ec = QRErrorCorrection(version=self.version, ec_level=self.ec_level)
+        data_blocks, ec_blocks = qr_ec.encode_data(encoded_data.buffer)
+        data_final = interleave_blocks(data_blocks)
+        ec_final = interleave_blocks(ec_blocks)
+        data_stream = BitStream.from_int8_array(data_final)
+        ec_stream = BitStream.from_int8_array(ec_final)
+        full_stream = BitStream.merge_bitstreams([data_stream, ec_stream]).to_bool_array()
+        return full_stream
+    
     def _encode_data(self):
         if isinstance(self.data, str):
-            return self._generate_color_data() # Placeholder
+            if self.data == "test_colors":
+                return self._generate_color_data()
+            return self._prepare_data(self._pre_process_data())
         elif isinstance(self.data, list):
             return BitStream.merge_bitstreams(self.data).to_bool_array()
         elif isinstance(self.data, BitStream):
@@ -93,9 +122,13 @@ class QRGenerator:
         self._place_alignment_patterns()
         self._place_timing_pattern()
         self._place_black_module()
+        # self._place_version_info_color()
         self._place_version_info()
         self._place_error_correction_bits()
         self._create_data_mask()                # Create data mask before data is placed
+    
+    def add_metadata(self):
+        self._place_format_info()
     
     def _generate_color_data(self, size=4000):
         encoded = []
@@ -156,6 +189,7 @@ class QRGenerator:
         best_mask = self._find_best_mask()
         print(f'Applying best mask {best_mask}')
         apply_mask(self.modules, self.data_mask, best_mask)
+        self.mask_pattern = best_mask
     
     def place_data(self):
         encoded_data = self._encode_data()
@@ -255,7 +289,7 @@ class QRGenerator:
                 else:
                     self.modules[x][y] = 1
     
-    def _place_version_info(self):
+    def _place_version_info_color(self):
         if self.version < 7:
             return
         # Place version info
@@ -268,6 +302,69 @@ class QRGenerator:
         for y in range(6):
             for xmod in range(3):
                 self.modules[y][self.size-11+xmod] = 3
+    
+    def _place_version_info(self):
+        if self.version < 7:
+            return
+        version_bits = QRVersionInfo.get_version_bits(self.version)
+
+        # Bottom Left
+        i = 0
+        for x in range(6):
+            for ymod in range(3):
+                self.modules[self.size-11+ymod][x] = version_bits[i]
+                i += 1
+        
+        # Top Right
+        i = 0
+        for y in range(6):
+            for xmod in range(3):
+                self.modules[y][self.size-11+xmod] = version_bits[i]
+                i += 1
+
+    
+    def _place_format_info(self):
+        if self.mask_pattern is None:
+            raise ValueError('Mask pattern must be set before placing format info')
+        format_bits = QRFormatInfo.get_format_bits(self.ec_level, self.mask_pattern)
+
+        # Top left
+        x = 8
+        y = 0
+        i = 0
+        while y < 8:
+            current = self.modules[x][y]
+            if current != 1:
+                self.modules[x][y] = format_bits[i]
+                i += 1
+            y += 1
+        while x > -1:
+            current = self.modules[x][y]
+            if current != 1:
+                self.modules[x][y] = format_bits[i]
+                i += 1
+            x -= 1
+        
+        # Bottom left
+        x = self.size - 1
+        y = 8
+        i = 0
+        while x > self.size - 8:
+            current = self.modules[x][y]
+            if current != 1:
+                self.modules[x][y] = format_bits[i]
+                i += 1
+            x -= 1
+        
+        # Top right
+        x = 8
+        y = self.size - 8
+        while y < self.size:
+            current = self.modules[x][y]
+            if current != 1:
+                self.modules[x][y] = format_bits[i]
+                i += 1
+            y += 1
 
     def _place_error_correction_bits(self):
         # It's handy if we do this in the correct order already
@@ -285,6 +382,15 @@ class QRGenerator:
                 self.modules[x][y] = 2
             x -= 1
 
+        # Bottom left
+        x = self.size - 1
+        y = 8
+        while x > self.size - 8:
+            current = self.modules[x][y]
+            if current is None:
+                self.modules[x][y] = 2
+            x -= 1
+
         # Top right
         x = 8
         y = self.size - 8
@@ -294,15 +400,6 @@ class QRGenerator:
                 self.modules[x][y] = 2
             y += 1
         
-        # Bottom left
-        x = self.size - 7
-        y = 8
-        while x < self.size:
-            current = self.modules[x][y]
-            if current is None:
-                self.modules[x][y] = 2
-            x += 1
-
     def create_image(self):
         return GridImage(self.modules, self.module_size)
  

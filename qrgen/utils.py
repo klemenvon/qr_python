@@ -48,7 +48,29 @@ def get_alignment_pattern_positions(version):
     locations = alignment_patterns[version-1]
     return [(x, y) for x in locations for y in locations]
 
-def interleave_blocks(data_blocks):
+def interleave_blocks(blocks, block_structure):
+    """
+    Interleave blocks according to the RS block structure
+    blocks: The actual data or EC blocks to interleave
+    block_structure: List of (count, total_words, data_words) tuples from RS config
+    """
+    interleaved = []
+    current_block = 0
+    
+    # For each block group in the structure
+    for count, total, data in block_structure:
+        group_blocks = blocks[current_block:current_block + count]
+        # Interleave this group
+        for i in range(max(len(b) for b in group_blocks)):
+            for block in group_blocks:
+                if i < len(block):
+                    interleaved.append(block[i])
+        current_block += count
+    
+    return interleaved
+
+def interleave_blocks_v2(data_blocks):
+    # This one was breaking because we didn't interleave the blocks of same size together, instead just all of them...
     interleaved = []
     max_length = max(len(block) for block in data_blocks)
     for i in range(max_length):

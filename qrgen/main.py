@@ -39,9 +39,10 @@ class QRGenerator:
     
     def _prepare_data(self, encoded_data):
         qr_ec = QRErrorCorrection(version=self.version, ec_level=self.ec_level)
+        rs_config = QRErrorCorrection.get_raw_block_config(self.version, self.ec_level)
         data_blocks, ec_blocks = qr_ec.encode_data(encoded_data.buffer)
-        data_final = interleave_blocks(data_blocks)
-        ec_final = interleave_blocks(ec_blocks)
+        data_final = interleave_blocks(data_blocks, rs_config)
+        ec_final = interleave_blocks(ec_blocks, rs_config)
         data_stream = BitStream.from_int8_array(data_final)
         ec_stream = BitStream.from_int8_array(ec_final)
         full_stream = BitStream.merge_bitstreams([data_stream, ec_stream]).to_bool_array()
@@ -128,6 +129,7 @@ class QRGenerator:
     
     def add_metadata(self):
         self._place_format_info()
+        self._place_version_info()
     
     def _generate_color_data(self, size=4000):
         encoded = []

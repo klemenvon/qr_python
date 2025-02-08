@@ -301,6 +301,15 @@ class QRErrorCorrection:
     """
     Handles QR code error correction level configurations and block splitting
     """
+
+    @staticmethod
+    def get_raw_block_config(version: int, ec_level: str) -> List[int]:
+        """Get raw block configuration for given version and EC level"""
+        if version < 1 or version > 40 and ec_level not in EC_INDEX.keys():
+            raise ValueError(f"Invalid version or EC level: {version}, {ec_level}")
+        # Get block config from the table
+        config = RS_BLOCK_TABLE[(version - 1) * 4 + EC_INDEX[ec_level]]
+        return [config[i:i + 3] for i in range(0, len(config), 3)]
     
     @staticmethod
     def get_block_config(version: int, ec_level: str) -> List[RSBlock]:

@@ -11,8 +11,8 @@ parser.add_argument('--show-mask', action='store_true', help='Show only data are
 parser.add_argument('--mask', type=int, help='Mask pattern to apply')
 args = parser.parse_args()
 
-data = 'Hello World! This is just here for padding. Hi.'
-# data = 'Hello World!'
+# data = 'Hello World! This is just here for padding. Hi.'
+data = 'Hello World!'
 # data = 'https://youtu.be/dQw4w9WgXcQ'
 # data = " ".join([data for _ in range(5)])
 

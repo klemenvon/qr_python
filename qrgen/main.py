@@ -75,7 +75,6 @@ class QRGenerator:
         image.save(filename)
     
     def _create_data_mask(self):
-        print('Creating data mask')
         self.data_mask = [row[:] for row in self.modules] # Copy the modules
         for i, row in enumerate(self.data_mask):
             for j, item in enumerate(row):
@@ -179,7 +178,6 @@ class QRGenerator:
         best_mask = None
         for i in range(8):
             score = self._evaluate_mask(i)
-            print(f'Mask {i} has score {score}')
             if best_score is None or score < best_score:
                 best_score = score
                 best_mask = i
@@ -187,7 +185,6 @@ class QRGenerator:
     
     def apply_best_mask(self):
         best_mask = self._find_best_mask()
-        print(f'Applying best mask {best_mask}')
         apply_mask(self.modules, self.data_mask, best_mask)
         self.mask_pattern = best_mask
     
@@ -221,7 +218,7 @@ class QRGenerator:
                         # Just pad with False if we run out of data
                         self.modules[y][x] = encoded_data.pop(0)
                     except IndexError:
-                        self.modules[y][x] = False
+                        self.modules[y][x] = 0
             counter += 1
     
     def _place_black_module(self):

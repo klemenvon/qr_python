@@ -11,7 +11,7 @@ List of components to build
 - [x] Data Encoding
 - [x] Data Placement
 - [x] Function Patterns
-- [ ] Mask Patterns
-- [ ] Error Correction
-- [ ] Mask Evaluation and Scoring
+- [x] Mask Patterns
+- [x] Error Correction
+- [x] Mask Evaluation and Scoring
 
